@@ -1,0 +1,3 @@
+'use strict';
+const auth=require('../lib/auth');const sync=require('../lib/sync');const error=require('../lib/messages');
+module.exports=async function(req,res){if(req.method!=='POST'){res.setHeader('Allow','POST');return auth.json(res,405,{error:'METHOD_NOT_ALLOWED'});}if(!auth.requireAuth(req,res))return;if(!auth.sameOrigin(req)||!String(req.headers['content-type']||'').startsWith('application/json'))return auth.json(res,403,{error:'ORIGIN_REJECTED'});try{return auth.json(res,200,await sync.run({force:req.body?.mode==='manual',continuation:req.body?.mode==='continue'}));}catch(e){return auth.json(res,502,error(e));}};

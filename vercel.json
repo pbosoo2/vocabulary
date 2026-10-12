@@ -2,6 +2,9 @@
   "functions": {
     "api/words.js": {
       "maxDuration": 60
+    },
+    "api/sync.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
