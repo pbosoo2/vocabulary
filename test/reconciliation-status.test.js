@@ -1,0 +1,3 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');const redis=require('../lib/redis'),store=require('../lib/store');
+test('authenticated status exposes last successful reconciliation date and preserves missing/failure states',async()=>{const old=redis.pipeline;try{const value='2026-10-12T03:00:00.000Z';redis.pipeline=async()=>[JSON.stringify({reconciledAt:value,fetchedAt:'2026-10-12T04:00:00Z'}),null];assert.equal((await store.status()).reconciledAt,value);redis.pipeline=async()=>[JSON.stringify({reconciledAt:value,lastError:'test failure'}),null];assert.equal((await store.status()).reconciledAt,value);redis.pipeline=async()=>[null,null];assert.equal((await store.status()).reconciledAt,null);}finally{redis.pipeline=old;}});
