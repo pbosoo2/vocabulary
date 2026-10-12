@@ -57,9 +57,10 @@ function focusRender(){const w=deck[pos];$('progress').textContent=(demo?'예시
 $('study').onclick=()=>{deck=shown.slice();pos=0;flipped=false;focusRender();$('dialog').showModal()};$('close').onclick=()=>$('dialog').close();$('flip').onclick=()=>{flipped=!flipped;focusRender()};$('prev').onclick=()=>{if(pos){pos--;flipped=false;focusRender()}};$('next').onclick=()=>{if(pos===deck.length-1){$('dialog').close();toast('공부 화면을 마쳤어요. Notion 학습 기록은 별도로 남겨 주세요.')}else{pos++;flipped=false;focusRender()}};$('dialog').addEventListener('keydown',e=>{if(e.key==='ArrowRight'){$('next').click();e.preventDefault()}if(e.key==='ArrowLeft'){$('prev').click();e.preventDefault()}});
 
 const REFRESH_INTERVAL=60*60*1000;
-let loading=false,loadError='',fetchedAt=null,session=false,timer=null,nextRefreshAt=null;
+const CACHE_STORAGE='vocabulary-encrypted-cache-v1';
+let loading=false,loadError='',fetchedAt=null,session=false,timer=null,nextRefreshAt=null,cacheCryptoKey=null;
 function loggedOut(message='비밀번호를 입력해 주세요.'){
- session=false;clearInterval(timer);nextRefreshAt=null;actual=[];shown=[];deck=[];if($('dialog').open)$('dialog').close();$('library').hidden=true;$('accountTools').hidden=true;$('loginPanel').hidden=false;$('loginMessage').textContent=message;$('password').value='';render();
+ session=false;clearInterval(timer);nextRefreshAt=null;cacheCryptoKey=null;fetchedAt=null;actual=[];shown=[];deck=[];if($('dialog').open)$('dialog').close();$('library').hidden=true;$('accountTools').hidden=true;$('loginPanel').hidden=false;$('loginMessage').textContent=message;$('password').value='';render();
 }
 function updateCountdown(){
  const el=$('countdown');
@@ -70,7 +71,39 @@ function updateCountdown(){
  el.textContent='다음 갱신까지 '+[hours,minutes,rest].map(n=>String(n).padStart(2,'0')).join(':');
 }
 function checkRefresh(){updateCountdown();if(session&&!loading&&nextRefreshAt&&Date.now()>=nextRefreshAt&&!document.hidden)loadWords();}
-function loggedIn(){session=true;$('library').hidden=false;$('accountTools').hidden=false;$('loginPanel').hidden=true;requestAnimationFrame(alignStudyButton);clearInterval(timer);timer=setInterval(checkRefresh,1000);}
+function decodeBytes(value){return Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));}
+function encodeBytes(bytes){let text='';for(const n of new Uint8Array(bytes))text+=String.fromCharCode(n);return btoa(text);}
+async function prepareCache(key){
+ cacheCryptoKey=null;
+ if(!key)return;
+ cacheCryptoKey=await crypto.subtle.importKey('raw',decodeBytes(key),{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function restoreCache(){
+ if(!cacheCryptoKey)return false;
+ try{
+  const raw=localStorage.getItem(CACHE_STORAGE);if(!raw)return false;
+  const envelope=JSON.parse(raw);if(envelope.version!==1)return false;
+  const clear=await crypto.subtle.decrypt({name:'AES-GCM',iv:decodeBytes(envelope.iv)},cacheCryptoKey,decodeBytes(envelope.data));
+  const data=JSON.parse(new TextDecoder().decode(clear));
+  if(!Number.isFinite(data.nextRefreshAt)||data.nextRefreshAt>Date.now()+REFRESH_INTERVAL+60000||!data.fetchedAt)return false;
+  actual=normalize(data.words);fetchedAt=data.fetchedAt;nextRefreshAt=data.nextRefreshAt;loadError='';return true;
+ }catch{return false;}
+}
+async function saveCache(){
+ if(!session||!cacheCryptoKey||!fetchedAt)return;
+ try{
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const clear=new TextEncoder().encode(JSON.stringify({words:actual,fetchedAt,nextRefreshAt}));
+  const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv},cacheCryptoKey,clear);
+  if(session)localStorage.setItem(CACHE_STORAGE,JSON.stringify({version:1,iv:encodeBytes(iv),data:encodeBytes(encrypted)}));
+ }catch{toast('브라우저 저장을 허용해야 새로고침 후에도 단어와 갱신 시간이 유지돼요.');}
+}
+async function loggedIn(key){
+ session=true;$('library').hidden=false;$('accountTools').hidden=false;$('loginPanel').hidden=true;requestAnimationFrame(alignStudyButton);clearInterval(timer);
+ await prepareCache(key);const restored=await restoreCache();
+ if(restored&&nextRefreshAt>Date.now()){render();}else{await loadWords();}
+ if(session)timer=setInterval(checkRefresh,1000);
+}
 async function readApiResponse(res){
  const message='서버 연결이 잠시 불안정해요. 새로고침 후 다시 시도해 주세요.';
  if(!(res.headers.get('content-type')||'').toLowerCase().includes('application/json'))throw Error(message);
@@ -78,9 +111,9 @@ async function readApiResponse(res){
 }
 async function loadWords(){if(loading||!session)return;loading=true;loadError='';$('refresh').disabled=true;$('refresh').textContent='갱신 중…';render();try{
  const res=await fetch('/api/words',{credentials:'same-origin',cache:'no-store'});const data=await readApiResponse(res);if(res.status===401){loggedOut('로그인이 만료되었어요. 다시 입력해 주세요.');return;}if(!res.ok)throw Error(data.message||'단어를 읽지 못했어요.');if(!session)return;actual=normalize(data.words);fetchedAt=data.fetchedAt;revealed.clear();
- }catch(e){loadError=e.message||'네트워크 연결을 확인해 주세요.';}finally{loading=false;if(session)nextRefreshAt=Date.now()+REFRESH_INTERVAL;$('refresh').disabled=false;$('refresh').textContent='동기화';render();}}
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginSubmit').disabled=true;$('loginMessage').textContent='로그인 중…';try{const res=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('password').value})});const data=await readApiResponse(res);$('password').value='';if(!res.ok)throw Error(data.message||'로그인하지 못했어요.');loggedIn();await loadWords();}catch(err){$('loginMessage').textContent=err.message||'연결을 확인해 주세요.';}finally{$('loginSubmit').disabled=false;}};
-$('logout').onclick=async()=>{try{const res=await fetch('/api/auth',{method:'DELETE',credentials:'same-origin'});if(!res.ok)throw Error();loggedOut('로그아웃했어요.');}catch{toast('로그아웃 요청에 실패했어요. 다시 시도해 주세요.');}};
+ }catch(e){loadError=e.message||'네트워크 연결을 확인해 주세요.';}finally{loading=false;if(session)nextRefreshAt=Date.now()+REFRESH_INTERVAL;$('refresh').disabled=false;$('refresh').textContent='동기화';await saveCache();render();}}
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginSubmit').disabled=true;$('loginMessage').textContent='로그인 중…';try{const res=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('password').value})});const data=await readApiResponse(res);$('password').value='';if(!res.ok)throw Error(data.message||'로그인하지 못했어요.');await loggedIn(data.cacheKey);}catch(err){$('loginMessage').textContent=err.message||'연결을 확인해 주세요.';}finally{$('loginSubmit').disabled=false;}};
+$('logout').onclick=async()=>{try{const res=await fetch('/api/auth',{method:'DELETE',credentials:'same-origin'});if(!res.ok)throw Error();try{localStorage.removeItem(CACHE_STORAGE);}catch{}loggedOut('로그아웃했어요.');}catch{toast('로그아웃 요청에 실패했어요. 다시 시도해 주세요.');}};
 $('refresh').onclick=loadWords;
 function alignStudyButton(){
  if($('library').hidden)return;
@@ -89,6 +122,7 @@ function alignStudyButton(){
 }
 new ResizeObserver(alignStudyButton).observe($('library'));
 window.addEventListener('resize',alignStudyButton);
+window.addEventListener('storage',async e=>{if(e.key===CACHE_STORAGE&&session&&!loading&&e.newValue&&await restoreCache())render();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&session)checkRefresh();});
-(async()=>{render();try{const res=await fetch('/api/auth',{credentials:'same-origin',cache:'no-store'});const data=await readApiResponse(res);if(!res.ok)throw Error(data.message||'로그인 설정을 확인해 주세요.');if(data.authenticated){loggedIn();await loadWords();}else loggedOut();}catch(e){loggedOut(location.protocol==='file:'?'서버 배포 후 사용할 수 있어요. Vercel 미리보기를 확인해 주세요.':e.message);}})();
+(async()=>{render();try{const res=await fetch('/api/auth',{credentials:'same-origin',cache:'no-store'});const data=await readApiResponse(res);if(!res.ok)throw Error(data.message||'로그인 설정을 확인해 주세요.');if(data.authenticated){await loggedIn(data.cacheKey);}else loggedOut();}catch(e){loggedOut(location.protocol==='file:'?'서버 배포 후 사용할 수 있어요. Vercel 미리보기를 확인해 주세요.':e.message);}})();
 </script></body></html>
