@@ -27,7 +27,7 @@ Vercel → vocabulary 프로젝트 → Settings → Environment Variables.
 | 변수 | 값 |
 |---|---|
 | `NOTION_TOKEN` | 위 연결 Configuration에서 받은 API token |
-| `APP_PASSWORD` | 비밀번호 관리자로 생성한 무작위 비밀번호, 최소 16자(24자 이상 권장) |
+| `APP_PASSWORD` | 비밀번호 관리자로 생성한 무작위 비밀번호, 최소 8자(16자 이상 권장) |
 | `SESSION_SECRET` | 별도로 생성한 무작위 문자열, 최소 32자(64자 이상 권장). 비밀번호와 다르게 설정 |
 
 Node가 있는 본인 컴퓨터에서 세션 키를 생성하려면 `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`를 사용할 수 있습니다. 결과는 Vercel에만 넣으세요.

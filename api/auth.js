@@ -7,7 +7,7 @@ module.exports=async function(req,res){
  if(!['POST','DELETE'].includes(req.method)){res.setHeader('Allow','GET, POST, DELETE');return auth.json(res,405,{error:'METHOD_NOT_ALLOWED'});}
  if(!auth.sameOrigin(req))return auth.json(res,403,{error:'ORIGIN_DENIED',message:'사이트 안에서 다시 시도해 주세요.'});
  if(req.method==='DELETE'){auth.clearCookie(res);return auth.json(res,200,{ok:true});}
- if(!auth.configured())return auth.json(res,503,{error:'AUTH_NOT_CONFIGURED',message:'APP_PASSWORD(16자 이상), SESSION_SECRET(32자 이상)을 설정해 주세요.'});
+ if(!auth.configured())return auth.json(res,503,{error:'AUTH_NOT_CONFIGURED',message:'APP_PASSWORD(8자 이상), SESSION_SECRET(32자 이상)을 설정해 주세요.'});
  if(!String(req.headers['content-type']||'').startsWith('application/json'))return auth.json(res,415,{error:'JSON_REQUIRED'});
  const ip=String(req.headers['x-forwarded-for']||req.socket?.remoteAddress||'unknown').split(',')[0].trim();
  const now=Date.now();for(const [key,a]of attempts){if(now-a.start>15*60*1000)attempts.delete(key);}
