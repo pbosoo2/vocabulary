@@ -54,12 +54,17 @@ function loggedOut(message='비밀번호를 입력해 주세요.'){
  session=false;clearInterval(timer);actual=[];shown=[];deck=[];if($('dialog').open)$('dialog').close();$('library').hidden=true;$('accountTools').hidden=true;$('loginPanel').hidden=false;$('loginMessage').textContent=message;$('password').value='';render();
 }
 function loggedIn(){session=true;$('library').hidden=false;$('accountTools').hidden=false;$('loginPanel').hidden=true;clearInterval(timer);timer=setInterval(()=>{if(session&&!document.hidden)loadWords()},60000);}
+async function readApiResponse(res){
+ const message='서버 연결이 잠시 불안정해요. 새로고침 후 다시 시도해 주세요.';
+ if(!(res.headers.get('content-type')||'').toLowerCase().includes('application/json'))throw Error(message);
+ try{const data=JSON.parse(await res.text());if(!data||typeof data!=='object'||Array.isArray(data))throw Error();return data;}catch{throw Error(message);}
+}
 async function loadWords(){if(loading||!session)return;loading=true;loadError='';$('refresh').disabled=true;render();try{
- const res=await fetch('/api/words',{credentials:'same-origin',cache:'no-store'});const data=await res.json();if(res.status===401){loggedOut('로그인이 만료되었어요. 다시 입력해 주세요.');return;}if(!res.ok)throw Error(data.message||'단어를 읽지 못했어요.');if(!session)return;actual=normalize(data.words);fetchedAt=data.fetchedAt;revealed.clear();
+ const res=await fetch('/api/words',{credentials:'same-origin',cache:'no-store'});const data=await readApiResponse(res);if(res.status===401){loggedOut('로그인이 만료되었어요. 다시 입력해 주세요.');return;}if(!res.ok)throw Error(data.message||'단어를 읽지 못했어요.');if(!session)return;actual=normalize(data.words);fetchedAt=data.fetchedAt;revealed.clear();
  }catch(e){loadError=e.message||'네트워크 연결을 확인해 주세요.';}finally{loading=false;$('refresh').disabled=false;render();}}
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginSubmit').disabled=true;$('loginMessage').textContent='서재를 여는 중…';try{const res=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('password').value})});const data=await res.json();$('password').value='';if(!res.ok)throw Error(data.message||'로그인하지 못했어요.');loggedIn();await loadWords();}catch(err){$('loginMessage').textContent=err.message||'연결을 확인해 주세요.';}finally{$('loginSubmit').disabled=false;}};
+$('loginForm').onsubmit=async e=>{e.preventDefault();$('loginSubmit').disabled=true;$('loginMessage').textContent='서재를 여는 중…';try{const res=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({password:$('password').value})});const data=await readApiResponse(res);$('password').value='';if(!res.ok)throw Error(data.message||'로그인하지 못했어요.');loggedIn();await loadWords();}catch(err){$('loginMessage').textContent=err.message||'연결을 확인해 주세요.';}finally{$('loginSubmit').disabled=false;}};
 $('logout').onclick=async()=>{try{const res=await fetch('/api/auth',{method:'DELETE',credentials:'same-origin'});if(!res.ok)throw Error();loggedOut('로그아웃했어요.');}catch{toast('로그아웃 요청에 실패했어요. 다시 시도해 주세요.');}};
 $('refresh').onclick=loadWords;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&session)loadWords();});
-(async()=>{render();try{const res=await fetch('/api/auth',{credentials:'same-origin',cache:'no-store'});const data=await res.json();if(!res.ok)throw Error(data.message||'로그인 설정을 확인해 주세요.');if(data.authenticated){loggedIn();await loadWords();}else loggedOut();}catch(e){loggedOut(location.protocol==='file:'?'서버 배포 후 사용할 수 있어요. Vercel 미리보기를 확인해 주세요.':e.message);}})();
+(async()=>{render();try{const res=await fetch('/api/auth',{credentials:'same-origin',cache:'no-store'});const data=await readApiResponse(res);if(!res.ok)throw Error(data.message||'로그인 설정을 확인해 주세요.');if(data.authenticated){loggedIn();await loadWords();}else loggedOut();}catch(e){loggedOut(location.protocol==='file:'?'서버 배포 후 사용할 수 있어요. Vercel 미리보기를 확인해 주세요.':e.message);}})();
 </script></body></html>
