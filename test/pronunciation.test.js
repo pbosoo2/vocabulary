@@ -8,4 +8,13 @@ test('Notion page mapping enriches synced words without changing Notion properti
 
 test('supplied vowel and consonant charts are supported for isolated symbols',()=>{const table={a:'아',e:'에',i:'이',o:'오',u:'우',ə:'어',ʌ:'어',ɔ:'오',ɛ:'에',æ:'애',b:'브',d:'드',j:'이',l:'러',m:'므',n:'느',r:'르',v:'브',z:'즈',dʒ:'쥐',ʒ:'지',tz:'쯔',ð:'뜨',h:'흐',g:'그',ŋ:'응',f:'프',k:'크',p:'퍼',s:'스',t:'트',ʃ:'쉬',tʃ:'취',θ:'쓰',ts:'츠',br:'브르',dr:'드르',tl:'트르',bl:'블르',gl:'글르',fl:'플르',sp:'스프',st:'스트',sk:'스크'};for(const [symbol,expected]of Object.entries(table))assert.equal(p.derive('['+symbol+']','영어'),expected,symbol);});
 test('glides and palatal consonants join vowels; syllabic consonants do not append stray syllables',()=>{assert.equal(p.derive('mænjuəl','영어'),'매뉴얼');assert.equal(p.derive('ʃuː','영어'),'슈');assert.equal(p.derive('tʃuː','영어'),'츄');assert.equal(p.derive('dʒuːs','영어'),'쥬스');assert.equal(p.derive('θɪŋk','영어'),'씽크');assert.equal(p.derive('ˈbʌtn̩','영어'),'버튼');assert.equal(p.derive('ˈæpl̩','영어'),'애플');});
-test('old automatic pronunciations are recalculated without overwriting manual text',()=>{const old={word:'manual',language:'영어',reading:'mænjuəl',koreanReading:'맨유을',koreanReadingSource:'approximation'};const updated=p.enrich(old);assert.equal(updated.koreanReading,'매뉴얼');assert.equal(updated.koreanReadingVersion,2);assert.equal(p.enrich(updated),updated);const manual={...old,koreanReading:'내가 쓴 발음',koreanReadingSource:undefined};assert.equal(p.enrich(manual),manual);assert.equal(p.enrich({...old,reading:'unsupported X'}).koreanReading,'');});
+test('old automatic pronunciations are recalculated without overwriting manual text',()=>{const old={word:'manual',language:'영어',reading:'mænjuəl',koreanReading:'맨유을',koreanReadingSource:'approximation'};const updated=p.enrich(old);assert.equal(updated.koreanReading,'매뉴얼');assert.equal(updated.koreanReadingVersion,3);assert.equal(p.enrich(updated),updated);const manual={...old,koreanReading:'내가 쓴 발음',koreanReadingSource:undefined};assert.equal(p.enrich(manual),manual);assert.equal(p.enrich({...old,reading:'unsupported X'}).koreanReading,'');});
+
+test('dictionary inline bars do not truncate encourage; alternatives remain separate',()=>{
+ for(const reading of ['ɪn|kɜːrɪdʒ','[ɪn|kɜːrɪdʒ]','/ɪn|kɜːrɪdʒ/','ɪn|kʌr|ɪdʒ'])assert.equal(p.derive(reading,'영어'),'인커리지',reading);
+ assert.equal(p.derive('ɪn|kɜːrɪdʒ | ɪn|kʌrɪdʒ','영어'),'인커리지');
+ assert.equal(p.derive('こもれび | コモレビ','일본어'),'코모레비');
+ const old={word:'encourage',reading:'ɪn|kɜːrɪdʒ',language:'영어',koreanReading:'인',koreanReadingSource:'approximation',koreanReadingVersion:2};
+ const fixed=p.enrich(old);assert.equal(fixed.koreanReading,'인커리지');assert.equal(fixed.koreanReadingVersion,3);assert.equal(p.enrich(fixed),fixed);
+ const manual={...old,koreanReading:'인커리쥐',koreanReadingSource:undefined};assert.equal(p.enrich(manual),manual);
+});

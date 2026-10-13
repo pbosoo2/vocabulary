@@ -1,13 +1,15 @@
 /* Reading-based Korean approximations. No dictionary lookup, network, or persistence. */
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.VocabularyPronunciation=factory();})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
-const VERSION=2;
+const VERSION=3;
 const initials={'ㄱ':0,'ㄲ':1,'ㄴ':2,'ㄷ':3,'ㄸ':4,'ㄹ':5,'ㅁ':6,'ㅂ':7,'ㅃ':8,'ㅅ':9,'ㅆ':10,'ㅇ':11,'ㅈ':12,'ㅉ':13,'ㅊ':14,'ㅋ':15,'ㅌ':16,'ㅍ':17,'ㅎ':18};
 const vowels={'ㅏ':0,'ㅐ':1,'ㅑ':2,'ㅒ':3,'ㅓ':4,'ㅔ':5,'ㅕ':6,'ㅖ':7,'ㅗ':8,'ㅘ':9,'ㅙ':10,'ㅚ':11,'ㅛ':12,'ㅜ':13,'ㅝ':14,'ㅞ':15,'ㅟ':16,'ㅠ':17,'ㅡ':18,'ㅢ':19,'ㅣ':20};
 const finals={'ㄱ':1,'ㄴ':4,'ㄹ':8,'ㅁ':16,'ㅂ':17,'ㅅ':19,'ㅇ':21};
 function syllable(c,v,f=''){return String.fromCharCode(44032+initials[c]*588+vowels[v]*28+(finals[f]||0));}
 function coda(text,c){const chars=Array.from(text),last=chars.pop();if(!last)return text;const n=last.charCodeAt(0)-44032;if(n>=0&&n<11172&&n%28===0)return chars.join('')+String.fromCharCode(last.charCodeAt(0)+finals[c]);return text+syllable(c,'ㅡ');}
-function clean(reading){let s=String(reading||'').normalize('NFKC').trim();if(!s||s.length>1000)return '';const enclosed=s.match(/\/([^/]+)\//)||s.match(/\[([^\]]+)\]/);if(enclosed)s=enclosed[1];else s=s.split(/\s*(?:\/|;|\||→)\s*/)[0];return s.replace(/[(){}\[\]<>]/g,'').trim();}
+function clean(reading){let s=String(reading||'').normalize('NFKC').trim();if(!s||s.length>1000)return '';// Dictionaries also use an unspaced vertical bar inside IPA as a stress/syllable separator.
+// Remove only bars between adjacent non-space characters; spaced bars still separate alternatives.
+s=s.replace(/(\S)\|(?=\S)/g,'$1');const enclosed=s.match(/\/([^/]+)\//)||s.match(/\[([^\]]+)\]/);if(enclosed)s=enclosed[1];else s=s.split(/\s*(?:\/|;|\||→)\s*/)[0];return s.replace(/[(){}\[\]<>]/g,'').trim();}
 const kana={};
 ['あいうえお|아이우에오','かきくけこ|카키쿠케코','がぎぐげご|가기구게고','さしすせそ|사시스세소','ざじずぜぞ|자지즈제조','たちつてと|타치츠테토','だぢづでど|다지즈데도','なにぬねの|나니누네노','はひふへほ|하히후헤호','ばびぶべぼ|바비부베보','ぱぴぷぺぽ|파피푸페포','まみむめも|마미무메모','やゆよ|야유요','らりるれろ|라리루레로','わゐゑを|와이에오','ぁぃぅぇぉ|아이우에오','ゃゅょ|야유요','ゔ|부'].forEach(row=>{const [a,b]=row.split('|');Array.from(a).forEach((c,i)=>kana[c]=Array.from(b)[i]);});
 const combos={};const bases={'き':'ㅋ','ぎ':'ㄱ','に':'ㄴ','ひ':'ㅎ','び':'ㅂ','ぴ':'ㅍ','み':'ㅁ','り':'ㄹ','し':'ㅅ','じ':'ㅈ','ち':'ㅊ','ぢ':'ㅈ'};
