@@ -67,7 +67,7 @@ header{flex-shrink:0}
 <dialog id="dialog" aria-label="한 장씩 공부하기"><div class="dialogtop"><span id="progress"></span><button class="iconbtn" id="close" aria-label="공부 화면 닫기">×</button></div><div class="focuscard" id="focus"></div><div class="dialogbottom"><button class="btn" id="prev">← 이전</button><button class="btn primary" id="flip">뜻 보기</button><button class="btn" id="next">다음 →</button></div></dialog><div class="toast" id="toast" role="status" hidden></div>
 <dialog id="quizDialog" aria-labelledby="quizDialogTitle"><div class="dialogtop"><strong id="quizDialogTitle">퀴즈 모드</strong><button class="iconbtn" id="quizClose" aria-label="퀴즈 닫기">×</button></div><div id="quizContent"></div></dialog>
 
-<script src="/pronunciation.js"></script>
+<script src="/pronunciation.js?v=2"></script>
 <script>
 // All words are read in authenticated ten-record pages; no credentials or word cache are persisted in the browser.
 const $=id=>document.getElementById(id),REFRESH_INTERVAL=60*60*1000;
