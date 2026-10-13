@@ -5,6 +5,9 @@
     },
     "api/sync.js": {
       "maxDuration": 60
+    },
+    "api/quiz.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
