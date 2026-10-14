@@ -6,3 +6,5 @@ test('disclosure chevron is centered and action buttons retain equal columns',()
 test('menu toggling changes labels and layout only, never starts synchronization',()=>{const listener=html.match(/\$\('accountTools'\)\.addEventListener\('toggle',[^\n]+/)[0];assert.doesNotMatch(listener,/syncWords|fetch\(/);assert.match(html,/\$\('accountTools'\)\.open=false/);});
 
 test('action disclosure follows the footer inside the library, not the header',()=>{const header=html.match(/<header>[\s\S]*?<\/header>/)[0],library=html.match(/<main[^>]*id="library"[\s\S]*?<\/main>/)[0];assert.doesNotMatch(header,/id="accountTools"/);assert.ok(library.indexOf('<footer>')<library.indexOf('id="accountTools"'));assert.match(library,/<\/details><\/main>$/);});
+
+test('recent sync information sits immediately above the bottom actions and defaults closed',()=>{assert.match(html,/<\/footer><details class="banner sync-panel" id="banner">[\s\S]*?<\/details><details class="account-menu" id="accountTools" hidden>/);const panel=html.match(/<details[^>]*id="banner"[^>]*>/)[0];assert.doesNotMatch(panel,/\bopen\b/);});
